@@ -54,44 +54,39 @@ snake-game/
 ├── README.md
 │
 ├── server/                     # 后端服务
-│   ├── Dockerfile              # Node.js 多阶段构建
+│   ├── Dockerfile              # Node.js 构建（含 Prisma generate）
+│   ├── .dockerignore
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── tsconfig.json
+│   ├── prisma/
+│   │   └── schema.prisma       # 数据库模型
 │   └── src/                    # 后端源码
 │       ├── main.ts             # 入口（Express + WebSocket）
 │       ├── routes/             # REST API 路由
 │       ├── services/           # 业务逻辑
-│       ├── middleware/          # 中间件（认证、限流）
+│       ├── middleware/          # 中间件（认证、错误处理）
+│       ├── types/              # 类型定义与校验
 │       └── db/                 # Prisma 配置
 │
 ├── web/                        # 前端服务
+│   ├── Dockerfile              # 多阶段构建（Vite build → Nginx）
+│   ├── .dockerignore
 │   ├── package.json
 │   ├── package-lock.json
-│   ├── tsconfig.json
 │   ├── vite.config.ts
 │   └── src/                    # 前端源码
 │       ├── main.tsx
 │       ├── App.tsx
 │       ├── components/         # React 组件
-│       ├── game/               # 游戏引擎（Canvas）
 │       ├── pages/              # 页面
-│       └── styles/             # 样式
+│       ├── services/           # 游戏引擎、API、音效
+│       ├── hooks/              # 自定义 Hooks
+│       └── types/              # 类型定义
 │
-├── database/                   # 数据库初始化脚本
-│   └── init/
-│       └── 01-init.sql         # 建表 + 视图 + 函数
-│
-├── docs/                       # 项目文档
-│   ├── 01-PRD/
-│   ├── 02-DRD/
-│   ├── 03-部署/
-│   ├── 04-开发任务/
-│   └── 05-测试用例/
-│
-└── scripts/                    # 运维脚本
-    ├── backup.sh               # 数据库备份
-    └── migrate.sh              # 数据库迁移
+└── database/                   # 数据库初始化脚本
+    └── init/
+        └── 01-init.sql         # 建表 + 视图 + 函数
 ```
 
 ## 5. 核心配置文件
@@ -99,14 +94,46 @@ snake-game/
 ### 5.1 docker-compose.yml
 
 ```yaml
-version: '3.8'
-
 services:
+  # ==================== 前端 (Nginx 静态文件 + 反向代理) ====================
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: snake-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - snake-net
+    restart: unless-stopped
+
+  # ==================== 后端 ====================
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: snake-server
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-snake_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-snake_game}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - snake-net
+    restart: unless-stopped
+
   # ==================== 数据库 ====================
   postgres:
     image: postgres:15-alpine
     container_name: snake-postgres
-    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-snake_game}
       POSTGRES_USER: ${POSTGRES_USER:-snake_user}
@@ -116,74 +143,16 @@ services:
       - ./database/init:/docker-entrypoint-initdb.d:ro
     networks:
       - snake-net
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-snake_user} -d ${POSTGRES_DB:-snake_game}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-          cpus: '0.5'
 
-  # ==================== 后端 ====================
-  server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: snake-server
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-snake_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-snake_game}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-15}
-      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
-    volumes:
-      - snake_logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - snake-net
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-          cpus: '1.0'
-
-  # ==================== Nginx (静态文件 + 反向代理) ====================
-  nginx:
-    image: nginx:alpine
-    container_name: snake-nginx
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./web/dist:/usr/share/nginx/html:ro
-      - snake_logs:/var/log/nginx
-    depends_on:
-      - server
-    networks:
-      - snake-net
-    deploy:
-      resources:
-        limits:
-          memory: 50M
-          cpus: '0.3'
-
-# ==================== 持久化卷 ====================
 volumes:
-  snake_data:   # PostgreSQL 数据
-  snake_logs:   # 应用日志
+  snake_data:
 
-# ==================== 网络 ====================
 networks:
   snake-net:
     driver: bridge
@@ -212,43 +181,31 @@ JWT_EXPIRES_IN=7d
 # API 限流
 RATE_LIMIT_WINDOW=15
 RATE_LIMIT_MAX=100
-
-# Node 环境
-NODE_ENV=production
 ```
 
 ### 5.3 server/Dockerfile
 
 ```dockerfile
-# ==================== 构建阶段 ====================
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# 复制依赖文件
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-
-# 复制源代码
-COPY . .
-RUN npm run build
-
-# ==================== 运行阶段 ====================
 FROM node:20-alpine
 
 WORKDIR /app
 
-# 安装 curl（健康检查用）
 RUN apk add --no-cache curl
 
-# 复制构建产物
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
+COPY package*.json ./
+COPY prisma ./prisma/
 
-# 创建非 root 用户
+RUN npm ci --only=production && \
+    npm install --no-save prisma && \
+    npx prisma generate && \
+    npm cache clean --force
+
+COPY . .
+RUN npm run build
+
 RUN addgroup -g 1001 appgroup && \
-    adduser -u 1001 -G appgroup -s /bin/sh -D appuser
+    adduser -u 1001 -G appgroup -s /bin/sh -D appuser && \
+    chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 3000
@@ -256,7 +213,32 @@ EXPOSE 3000
 CMD ["node", "dist/main.js"]
 ```
 
-### 5.4 nginx.conf
+### 5.4 web/Dockerfile
+
+```dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY web/package*.json ./
+RUN npm ci && npm cache clean --force
+
+COPY web/ .
+RUN npm run build
+
+FROM nginx:alpine
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+WORKDIR /usr/share/nginx/html
+COPY --from=builder /app/dist .
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 5.5 nginx.conf
 
 ```nginx
 worker_processes auto;
@@ -271,7 +253,6 @@ http {
     sendfile      on;
     keepalive_timeout 65;
 
-    # Gzip 压缩
     gzip on;
     gzip_vary on;
     gzip_proxied any;
@@ -286,22 +267,18 @@ http {
         listen 80;
         server_name _;
 
-        # ==================== 静态资源 ====================
         root /usr/share/nginx/html;
         index index.html;
 
-        # SPA 路由
         location / {
             try_files $uri $uri/ /index.html;
 
-            # 静态资源缓存
             location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
                 expires 1y;
                 add_header Cache-Control "public, immutable";
             }
         }
 
-        # ==================== API 反向代理 ====================
         location /api/ {
             proxy_pass http://server:3000;
             proxy_http_version 1.1;
@@ -311,7 +288,6 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # ==================== WebSocket ====================
         location /ws {
             proxy_pass http://server:3000;
             proxy_http_version 1.1;
@@ -321,7 +297,6 @@ http {
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
-            # 长连接超时
             proxy_connect_timeout 7d;
             proxy_send_timeout 7d;
             proxy_read_timeout 7d;
@@ -330,34 +305,48 @@ http {
 }
 ```
 
-### 5.5 .dockerignore
-
-```
-node_modules
-dist
-.git
-.github
-.vscode
-.idea
-*.md
-!README.md
-docs/
-scripts/
-.env
-.env.*
-!.env.example
-```
-
-### 5.6 .gitignore
+### 5.6 .dockerignore
 
 ```
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+docs/
+*.md
+!README.md
+scripts/
+server/
+database/
+*.log
+.claude/
+```
+
+### 5.7 .gitignore
+
+```
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 *.log
 coverage/
+postgres/data/
+logs/
 .claude/
-.DS_Store
 ```
 
 ## 6. 部署步骤
@@ -368,52 +357,52 @@ coverage/
 # 1. SSH 登录群晖 NAS
 ssh user@nas-ip
 
-# 2. 克隆项目
+# 2. 克隆项目并进入目录
 mkdir -p /volume1/docker
 cd /volume1/docker
-git clone https://github.com/your-org/snake-game.git
+git clone https://github.com/Yvessheng/snake-game.git
 cd snake-game
-
-# 3. 构建前端（生成 dist 目录）
-cd web && npm install && npm run build
-cd ..
-
-# 4. 配置环境变量
-cp .env.example .env
-# 编辑 .env，填写 DB_PASSWORD 和 JWT_SECRET
-
-# 5. 启动服务
-docker compose up -d --build
-
-# 6. 查看状态
-docker compose ps
-
-# 7. 查看日志
-docker compose logs -f
-```
-
-### 6.2 本地开发
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/your-org/snake-game.git
-cd snake-game
-
-# 2. 安装依赖
-cd web && npm install
-cd ../server && npm install
 
 # 3. 配置环境变量
 cp .env.example .env
-# 编辑 .env
+vi .env   # 编辑 .env，填写 DB_PASSWORD 和 JWT_SECRET
 
-# 4. 启动开发服务器
-# 终端 1: 启动后端
+# 4. 构建并启动（首次需下载镜像和构建，约 3-5 分钟）
+docker compose up -d --build
+
+# 5. 查看状态
+docker compose ps
+
+# 6. 查看日志
+docker compose logs -f
+```
+
+访问 `http://群晖IP:3000` 即可使用。
+
+### 6.2 本地开发
+
+适用于修改代码、调试功能的开发者。
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/Yvessheng/snake-game.git
+cd snake-game
+
+# 2. 安装依赖
+cd web && npm install && cd ..
+cd server && npm install && cd ..
+
+# 3. 配置环境变量
+cp .env.example server/.env
+
+# 4. 终端 1: 启动后端开发服务器（localhost:3000，支持热更新）
 cd server && npm run dev
 
-# 终端 2: 启动前端（开发模式会代理 API 到后端）
+# 5. 终端 2: 启动前端开发服务器（localhost:5173，API 自动代理到后端）
 cd web && npm run dev
 ```
+
+前端访问 `http://localhost:5173`，后端 API 代理到 `http://localhost:3000`。
 
 ### 6.3 验证部署
 
@@ -425,9 +414,6 @@ curl http://localhost:3000/api/health
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"test","email":"test@example.com","password":"Test123!"}'
-
-# WebSocket 测试
-wscat -c ws://localhost:3000/ws
 ```
 
 ## 7. 群晖反向代理配置
@@ -463,7 +449,6 @@ wscat -c ws://localhost:3000/ws
 
 ### 7.3 HTTP 自动跳转 HTTPS
 
-群晖 DSM 默认提供此功能：
 DSM → **控制面板** → **登录门户** → 勾选 **自动将 HTTP 连接重定向到 HTTPS**
 
 ## 8. 日常运维
@@ -474,14 +459,14 @@ DSM → **控制面板** → **登录门户** → 勾选 **自动将 HTTP 连接
 docker compose logs -f          # 所有服务
 docker compose logs -f server   # 仅后端
 docker compose logs -f postgres # 仅数据库
+docker compose logs -f web      # 仅前端
 ```
 
 ### 8.2 更新服务
 
 ```bash
+cd /volume1/docker/snake-game   # 进入项目目录
 git pull                        # 拉取最新代码
-cd web && npm install && npm run build  # 重新构建前端
-cd ..
 docker compose up -d --build    # 重新构建并启动
 docker compose ps               # 确认状态
 ```
@@ -498,11 +483,11 @@ docker compose exec postgres pg_dump -U snake_user snake_game | gzip > backup_$(
 # 连接数据库
 docker compose exec postgres psql -U snake_user -d snake_game
 
-# 刷新排行榜物化视图
-SELECT refresh_leaderboard();
-
 # 查看数据库大小
 SELECT pg_size_pretty(pg_database_size('snake_game'));
+
+# 退出
+\q
 ```
 
 ### 8.5 监控资源
@@ -529,14 +514,21 @@ docker compose ps postgres              # 检查 PostgreSQL 状态
 docker compose exec postgres pg_isready # 测试连接
 ```
 
-### 9.3 WebSocket 连接失败
+### 9.3 前端无法访问
+
+```bash
+docker compose ps web                   # 检查 Nginx 状态
+docker compose logs web                 # 查看 Nginx 日志
+docker compose exec web curl -I http://localhost  # 测试本地访问
+```
+
+### 9.4 WebSocket 连接失败
 
 ```bash
 docker compose logs -f server | grep -i websocket
-wscat -c ws://localhost:3000/ws
 ```
 
-### 9.4 重新初始化数据库
+### 9.5 重新初始化数据库
 
 ```bash
 docker compose down -v          # 停止并删除数据卷（⚠️ 会丢失数据）
