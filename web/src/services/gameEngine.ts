@@ -42,6 +42,7 @@ export class GameEngine {
 
   constructor(onStateChange?: (state: GameState) => void, onEvent?: GameEventCallback) {
     this.onStateChange = onStateChange;
+    this.onEvent = onEvent;
     this.state = this.createInitialState();
   }
 
