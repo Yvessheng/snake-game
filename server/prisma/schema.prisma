@@ -1,0 +1,60 @@
+// datasource
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id            String   @id @default(uuid())
+  username      String   @unique @db.VarChar(50)
+  email         String   @unique
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  avatarUrl     String?  @map("avatar_url") @db.VarChar(255)
+  highestScore  Int      @default(0) @map("highest_score")
+  totalGames    Int      @default(0) @map("total_games")
+  totalScore    Int      @default(0) @map("total_score")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  scores      Score[]
+  achievements Achievement[]
+
+  @@map("users")
+}
+
+// 分数记录表
+model Score {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  score         Int
+  snakeLength   Int      @map("snake_length")
+  gameDuration  Int      @map("game_duration")
+  gameMode      String   @default("classic") @map("game_mode")
+  playedAt      DateTime @default(now()) @map("played_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([score(sort: Desc)])
+  @@index([playedAt(sort: Desc)])
+  @@map("scores")
+}
+
+// 成就表
+model Achievement {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  achievementKey   String   @map("achievement_key") @db.VarChar(50)
+  achievementName  String   @map("achievement_name") @db.VarChar(100)
+  unlockedAt       DateTime @default(now()) @map("unlocked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementKey])
+  @@map("achievements")
+}

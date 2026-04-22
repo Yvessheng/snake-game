@@ -1,0 +1,67 @@
+# ==================== 贪吃蛇一键部署 ====================
+# 用法: docker compose up -d --build
+
+services:
+  # ==================== 前端 (Nginx 静态文件 + 反向代理) ====================
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: snake-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - snake-net
+    restart: unless-stopped
+
+  # ==================== 后端 ====================
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: snake-server
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-snake_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-snake_game}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - snake-net
+    restart: unless-stopped
+
+  # ==================== 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: snake-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-snake_game}
+      POSTGRES_USER: ${POSTGRES_USER:-snake_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - snake_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - snake-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-snake_user} -d ${POSTGRES_DB:-snake_game}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ==================== 持久化卷 ====================
+volumes:
+  snake_data:
+
+# ==================== 网络 ====================
+networks:
+  snake-net:
+    driver: bridge

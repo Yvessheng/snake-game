@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in Docker)
+docs/
+*.md
+!README.md
+
+# Scripts (not needed in production image)
+scripts/
+
+# Server (excluded from web build context)
+server/
+
+# Database init (handled separately)
+database/
+
+# Logs
+*.log
+
+# Claude
+.claude/
