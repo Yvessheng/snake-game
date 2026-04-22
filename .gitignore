@@ -34,3 +34,9 @@ logs/
 
 # Prisma
 server/prisma/migrations/
+
+# 开发过程文档（不提交到 GitHub）
+docs/01-PRD/
+docs/02-DRD/
+docs/04-开发任务/
+docs/05-测试用例/
