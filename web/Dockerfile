@@ -13,7 +13,10 @@ RUN npm run build
 FROM nginx:alpine
 
 # 复制 nginx 配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# 删除默认配置
+RUN rm -f /etc/nginx/conf.d/default.conf
 
 WORKDIR /usr/share/nginx/html
 
