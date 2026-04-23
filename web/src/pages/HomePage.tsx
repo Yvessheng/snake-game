@@ -64,7 +64,7 @@ export function HomePage({ user, onLogout, onGoToGame, onGoToLogin, onGoToRegist
           <h3 style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: theme.text.primary }}>排行榜 Top 10</h3>
           <div style={{ background: theme.bg.elevated, border: theme.bevel.sunken, overflow: 'auto', maxHeight: 240 }}>
             {top10.map((entry, i) => (
-              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderBottom: i < 9 ? `1px solid ${theme.border.subtle}` : 'none', fontSize: 12 }}>
+              <div key={entry.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderBottom: i < 9 ? `1px solid ${theme.border.subtle}` : 'none', fontSize: 12 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {i < 3 ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, background: medals[i], color: '#fff', fontSize: 10, fontWeight: 700 }}>
@@ -75,7 +75,7 @@ export function HomePage({ user, onLogout, onGoToGame, onGoToLogin, onGoToRegist
                   )}
                   <span style={{ color: theme.text.primary }}>{entry.username}</span>
                 </span>
-                <span style={{ color: theme.accent.green, fontWeight: 700 }}>{entry.highestScore}</span>
+                <span style={{ color: theme.accent.green, fontWeight: 700 }}>{entry.score}</span>
               </div>
             ))}
           </div>
