@@ -39,5 +39,5 @@ export function useAuth() {
 
   const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY), []);
 
-  return { user, login, register, logout, getToken, isAuthenticated: !!user };
+  return { user, login, register, logout, getToken, setUser, isAuthenticated: !!user };
 }
