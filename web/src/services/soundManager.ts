@@ -1,4 +1,4 @@
-type SoundType = 'eat' | 'die' | 'start';
+type SoundType = 'eat' | 'eat_apple' | 'eat_berry' | 'eat_nut' | 'eat_mushroom' | 'eat_cactus' | 'eat_chili' | 'die' | 'start' | 'zone_unlock';
 
 interface SoundDef {
   frequency: number;
@@ -9,11 +9,31 @@ interface SoundDef {
 
 const SOUNDS: Record<SoundType, SoundDef[]> = {
   eat: [{ frequency: 587, duration: 80, type: 'sine', sweep: 880 }],
+  eat_apple: [{ frequency: 523, duration: 60, type: 'sine', sweep: 784 }],
+  eat_berry: [
+    { frequency: 659, duration: 50, type: 'sine', sweep: 880 },
+    { frequency: 784, duration: 50, type: 'sine', sweep: 1047 },
+  ],
+  eat_nut: [{ frequency: 220, duration: 120, type: 'triangle', sweep: 330 }],
+  eat_mushroom: [
+    { frequency: 880, duration: 80, type: 'sine', sweep: 1200 },
+    { frequency: 1100, duration: 80, type: 'sine', sweep: 600 },
+  ],
+  eat_cactus: [{ frequency: 1200, duration: 40, type: 'square', sweep: 200 }],
+  eat_chili: [
+    { frequency: 400, duration: 60, type: 'sawtooth', sweep: 800 },
+    { frequency: 600, duration: 60, type: 'sawtooth', sweep: 1200 },
+  ],
   die: [
     { frequency: 300, duration: 150, type: 'sawtooth' },
     { frequency: 150, duration: 200, type: 'sawtooth' },
   ],
   start: [{ frequency: 440, duration: 100, type: 'sine', sweep: 660 }],
+  zone_unlock: [
+    { frequency: 523, duration: 100, type: 'sine', sweep: 659 },
+    { frequency: 659, duration: 100, type: 'sine', sweep: 784 },
+    { frequency: 784, duration: 150, type: 'sine', sweep: 1047 },
+  ],
 };
 
 export class SoundManager {
@@ -31,11 +51,12 @@ export class SoundManager {
     return this.ctx;
   }
 
-  play(type: SoundType) {
+  play(type: SoundType, foodType?: string) {
     if (this.muted) return;
+    const soundType: SoundType = foodType ? (`eat_${foodType}` as SoundType) : type;
+    const defs = SOUNDS[soundType] ?? SOUNDS[type];
     try {
       const ctx = this.getContext();
-      const defs = SOUNDS[type];
       let time = ctx.currentTime;
 
       for (const def of defs) {

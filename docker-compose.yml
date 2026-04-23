@@ -26,10 +26,8 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 3030
+      PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-snake_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-snake_game}?schema=public
-    ports:
-      - "3030:3030"
     depends_on:
       postgres:
         condition: service_healthy

@@ -7,12 +7,18 @@ interface ScoreDisplayProps {
 
 export function ScoreDisplay({ currentScore, highestScore }: ScoreDisplayProps) {
   return (
-    <div style={{ textAlign: 'right', minWidth: 120 }}>
-      <div style={{ fontSize: 32, fontWeight: 800, color: theme.accent.green, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+    <div style={{ textAlign: 'right', minWidth: 80 }}>
+      <div style={{
+        fontSize: 20,
+        fontWeight: 700,
+        color: theme.accent.green,
+        lineHeight: 1,
+        fontFamily: '"MS Sans Serif", "Tahoma", "SimSun", monospace',
+      }}>
         {currentScore}
       </div>
       {highestScore !== undefined && highestScore > 0 && (
-        <div style={{ fontSize: 11, color: theme.text.muted, marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
           最高: {highestScore}
         </div>
       )}

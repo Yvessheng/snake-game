@@ -33,47 +33,53 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
     }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '10px 14px',
-    background: theme.bg.elevated,
-    border: `1px solid ${theme.border.default}`,
-    borderRadius: theme.radius.sm,
-    color: theme.text.primary,
-    fontSize: 14,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  };
-
   return (
     <div style={{ minHeight: '100vh', background: theme.bg.page, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: theme.text.primary }}>
-      <button onClick={onGoHome} style={{ position: 'absolute', top: 16, left: 16, background: 'transparent', border: `1px solid ${theme.border.default}`, color: theme.text.secondary, padding: '6px 14px', borderRadius: theme.radius.sm, cursor: 'pointer', fontSize: 13 }}>
+      <button onClick={onGoHome} style={{ position: 'absolute', top: 4, left: 4, background: '#C0C0C0', border: '2px outset #FFFFFF', color: '#000', padding: '3px 10px', cursor: 'pointer', fontSize: 12 }}>
         ← 首页
       </button>
-      <h1 style={{ fontSize: 48, margin: '0 0 6px', fontWeight: 900, letterSpacing: 4, color: theme.accent.green }}>SNAKE</h1>
-      <p style={{ color: theme.text.muted, marginBottom: 28, fontSize: 14 }}>注册</p>
-      <form onSubmit={handleSubmit} style={{ width: 340, background: theme.bg.surface, padding: 32, borderRadius: theme.radius.lg, border: `1px solid ${theme.border.subtle}`, boxShadow: theme.shadow.modal }}>
-        {error && <div style={{ color: theme.accent.pink, fontSize: 13, marginBottom: 16, padding: '8px 12px', background: `${theme.accent.pink}12`, borderRadius: theme.radius.sm }}>{error}</div>}
-        <div style={{ marginBottom: 14 }}>
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用户名 (3-16字符)" required minLength={3} maxLength={16} pattern="^[a-zA-Z0-9_]+$" style={inputStyle} />
+
+      {/* Win98 Dialog */}
+      <div style={{ width: 300, background: theme.bg.surface, border: theme.bevel.raised }}>
+        {/* Title bar */}
+        <div style={{ background: theme.titleBar.active, color: theme.text.inverse, padding: '2px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, userSelect: 'none' }}>
+          <span style={{ padding: '0 2px' }}>注册</span>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱" required style={inputStyle} />
+        {/* Content */}
+        <div style={{ padding: 16 }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <h1 style={{ fontSize: 20, margin: '0 0 4px', fontWeight: 700, color: theme.accent.blue }}>SNAKE</h1>
+          </div>
+
+          {error && <div style={{ color: theme.accent.pink, fontSize: 12, marginBottom: 12, padding: '4px 6px', background: '#FFFFFF', border: theme.bevel.sunken }}>{error}</div>}
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>用户名</label>
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="3-16字符" required minLength={3} maxLength={16} pattern="^[a-zA-Z0-9_]+$" style={{ width: '100%', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>邮箱</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="请输入邮箱" required style={{ width: '100%', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>密码</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少8字符" required minLength={8} style={{ width: '100%', boxSizing: 'border-box' }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => { (e.target as HTMLButtonElement).form?.requestSubmit(); }}
+            disabled={loading}
+            style={{ width: '100%', padding: '6px 0', background: '#C0C0C0', border: '2px outset #FFFFFF', color: '#000', fontWeight: 700, fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer', outline: 'none' }}
+          >
+            {loading ? '注册中...' : '注册'}
+          </button>
         </div>
-        <div style={{ marginBottom: 24 }}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="密码 (至少8字符)" required minLength={8} style={inputStyle} />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ width: '100%', padding: '12px 0', background: theme.accent.blue, border: 'none', borderRadius: theme.radius.sm, color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
-        >
-          {loading ? '注册中...' : '注册'}
-        </button>
-      </form>
-      <p style={{ marginTop: 20, color: theme.text.muted, fontSize: 14 }}>
+      </div>
+
+      <p style={{ marginTop: 16, color: theme.text.secondary, fontSize: 12 }}>
         已有账号？{' '}
-        <span onClick={onGoToLogin} style={{ color: theme.accent.blue, cursor: 'pointer', fontWeight: 600 }}>登录</span>
+        <span onClick={onGoToLogin} style={{ color: '#0000FF', cursor: 'pointer', textDecoration: 'underline', fontWeight: 700 }}>登录</span>
       </p>
     </div>
   );
