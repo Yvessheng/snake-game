@@ -15,11 +15,11 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const _handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (password.length < 8) {
-      setError('密码至少8个字符');
+      setError('密码至少需要8个字符');
       return;
     }
     setLoading(true);
@@ -55,7 +55,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
 
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>用户名</label>
-            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="3-16字符" required minLength={3} maxLength={16} pattern="^[a-zA-Z0-9_]+$" style={{ width: '100%', boxSizing: 'border-box' }} />
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="请输入用户名" required style={{ width: '100%', boxSizing: 'border-box' }} />
           </div>
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>邮箱</label>
@@ -63,7 +63,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, color: theme.text.primary, display: 'block', marginBottom: 2 }}>密码</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少8字符" required minLength={8} style={{ width: '100%', boxSizing: 'border-box' }} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="至少8个字符" required style={{ width: '100%', boxSizing: 'border-box' }} />
           </div>
 
           <button
@@ -71,6 +71,9 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
             onClick={(e) => { (e.target as HTMLButtonElement).form?.requestSubmit(); }}
             disabled={loading}
             style={{ width: '100%', padding: '6px 0', background: '#C0C0C0', border: '2px outset #FFFFFF', color: '#000', fontWeight: 700, fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer', outline: 'none' }}
+            onMouseDown={(e) => { if (!loading) (e.target as HTMLButtonElement).style.borderStyle = 'inset'; }}
+            onMouseUp={(e) => { (e.target as HTMLButtonElement).style.borderStyle = 'outset'; }}
+            onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.borderStyle = 'outset'; }}
           >
             {loading ? '注册中...' : '注册'}
           </button>

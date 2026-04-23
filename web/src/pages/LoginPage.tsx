@@ -14,7 +14,7 @@ export function LoginPage({ onLogin, onGoToRegister, onGoHome }: LoginPageProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const _handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);

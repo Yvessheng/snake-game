@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import { soundManager } from '../services/soundManager';
 import { CANVAS_SIZE, ZONES, getZoneConfig, getFoodConfig, FOOD_TYPES } from '../types/game';
-import type { ZoneUnlockNotification, FoodTypeId } from '../types/game';
+import type { FoodTypeId } from '../types/game';
 import type { SkinId } from '../types/skins';
 import { loadSkin } from '../types/skins';
 import { theme } from '../types/theme';
