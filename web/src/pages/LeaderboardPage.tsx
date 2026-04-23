@@ -5,14 +5,20 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import type { RankNotification } from '../hooks/useWebSocket';
 import { NotificationPanel } from '../components/ui/NotificationPanel';
 import { useAuth } from '../hooks/useAuth';
+import { theme } from '../types/theme';
 
-const BG = '#0D1117';
-const CARD_BG = '#161B22';
-const BORDER = '#30363D';
-const TEXT = '#F0F6FC';
-const TEXT_SECONDARY = '#8B949E';
-const NEON_GREEN = '#00FF88';
-const NEON_BLUE = '#00D4FF';
+const btnBase = {
+  padding: '6px 16px',
+  borderRadius: theme.radius.sm,
+  fontWeight: 600 as const,
+  fontSize: 13,
+  cursor: 'pointer',
+  transition: 'all 150ms ease',
+  border: `1px solid ${theme.border.default}`,
+  background: theme.bg.surface,
+  color: theme.text.primary,
+  outline: 'none',
+};
 
 export function LeaderboardPage() {
   const { getToken, user } = useAuth();
@@ -29,22 +35,20 @@ export function LeaderboardPage() {
     }).catch(() => {});
   }, [page]);
 
-  // WebSocket notifications
   const ws = useWebSocket(token);
-
   const totalPages = Math.ceil(total / LIMIT);
+  const medals = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, color: TEXT, padding: 32, maxWidth: 700, margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: theme.bg.page, color: theme.text.primary, padding: '28px 32px', maxWidth: 720, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 24, color: NEON_BLUE }}>排行榜</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {ws.connected && <span style={{ fontSize: 12, color: NEON_GREEN }}>● 实时</span>}
-          <button onClick={() => (window.location.hash = '/')} style={{ background: 'none', border: `1px solid ${BORDER}`, color: TEXT_SECONDARY, padding: '4px 12px', borderRadius: 4, cursor: 'pointer' }}>← 返回首页</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>排行榜</h2>
+          {ws.connected && <span style={{ fontSize: 11, color: theme.accent.green, background: `${theme.accent.green}15`, padding: '2px 8px', borderRadius: 10 }}>实时</span>}
         </div>
+        <button onClick={() => (window.location.hash = '/')} style={{ ...btnBase, background: 'transparent', color: theme.text.secondary }}>← 首页</button>
       </div>
 
-      {/* Notifications */}
       <NotificationPanel
         notifications={ws.notifications as RankNotification[]}
         onDismiss={ws.dismiss}
@@ -52,8 +56,8 @@ export function LeaderboardPage() {
       />
 
       {/* Table */}
-      <div style={{ background: CARD_BG, borderRadius: 8, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, fontSize: 12, color: TEXT_SECONDARY, fontWeight: 'bold' }}>
+      <div style={{ background: theme.bg.surface, borderRadius: theme.radius.md, border: `1px solid ${theme.border.subtle}`, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', padding: '10px 18px', borderBottom: `1px solid ${theme.border.subtle}`, fontSize: 11, color: theme.text.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
           <span style={{ width: 80 }}>排名</span>
           <span style={{ flex: 1 }}>玩家</span>
           <span style={{ width: 100, textAlign: 'right' }}>最高分</span>
@@ -67,18 +71,27 @@ export function LeaderboardPage() {
               key={entry.id}
               style={{
                 display: 'flex',
-                padding: '10px 16px',
-                borderBottom: `1px solid ${BORDER}`,
-                background: isCurrentUser ? 'rgba(0, 212, 255, 0.1)' : undefined,
+                padding: '10px 18px',
+                borderBottom: `1px solid ${theme.border.subtle}`,
+                background: isCurrentUser ? `${theme.accent.blue}10` : 'transparent',
+                borderLeft: isCurrentUser ? `2px solid ${theme.accent.blue}` : '2px solid transparent',
               }}
             >
-              <span style={{ width: 80 }}>{rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}</span>
-              <span style={{ flex: 1 }}>
-                {entry.username}
-                {isCurrentUser && <span style={{ color: NEON_BLUE, marginLeft: 8, fontSize: 12 }}>你</span>}
+              <span style={{ width: 80, display: 'flex', alignItems: 'center' }}>
+                {rank <= 3 ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: medals[rank - 1] + '18', color: medals[rank - 1], fontSize: 12, fontWeight: 800 }}>
+                    {rank}
+                  </span>
+                ) : (
+                  <span style={{ color: theme.text.muted, fontSize: 14 }}>{rank}</span>
+                )}
               </span>
-              <span style={{ width: 100, textAlign: 'right', color: NEON_GREEN, fontWeight: 'bold' }}>{entry.highestScore}</span>
-              <span style={{ width: 80, textAlign: 'right', color: TEXT_SECONDARY }}>{entry.totalGames}</span>
+              <span style={{ flex: 1, display: 'flex', alignItems: 'center', color: theme.text.primary }}>
+                {entry.username}
+                {isCurrentUser && <span style={{ color: theme.accent.blue, marginLeft: 8, fontSize: 11, fontWeight: 600 }}>你</span>}
+              </span>
+              <span style={{ width: 100, textAlign: 'right', color: theme.accent.green, fontWeight: 700 }}>{entry.highestScore}</span>
+              <span style={{ width: 80, textAlign: 'right', color: theme.text.muted }}>{entry.totalGames}</span>
             </div>
           );
         })}
@@ -87,9 +100,9 @@ export function LeaderboardPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-          <button disabled={page === 1} onClick={() => setPage(page - 1)} style={{ background: page === 1 ? 'none' : CARD_BG, border: `1px solid ${BORDER}`, color: TEXT, padding: '6px 16px', borderRadius: 4, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>上一页</button>
-          <span style={{ padding: '6px 12px', color: TEXT_SECONDARY }}>{page}/{totalPages}</span>
-          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} style={{ background: page === totalPages ? 'none' : CARD_BG, border: `1px solid ${BORDER}`, color: TEXT, padding: '6px 16px', borderRadius: 4, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>下一页</button>
+          <button disabled={page === 1} onClick={() => setPage(page - 1)} style={{ ...btnBase, opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>上一页</button>
+          <span style={{ padding: '6px 12px', color: theme.text.muted, fontSize: 13 }}>{page} / {totalPages}</span>
+          <button disabled={page === totalPages} onClick={() => setPage(page + 1)} style={{ ...btnBase, opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>下一页</button>
         </div>
       )}
     </div>
