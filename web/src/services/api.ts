@@ -1,4 +1,4 @@
-import type { User, AuthResponse, LeaderboardResponse, ScoreSubmission, ScoreResult } from '../types';
+import type { User, AuthResponse, LeaderboardResponse, MyRankResponse, ScoreSubmission, ScoreResult } from '../types';
 
 export interface AchievementInfo {
   key: string;
@@ -70,7 +70,7 @@ export const api = {
     return res.json();
   },
 
-  async getMyRank(token: string): Promise<LeaderboardResponse['entries'][0]> {
+  async getMyRank(token: string): Promise<MyRankResponse> {
     const res = await fetch(`${BASE_URL}/leaderboard/me`, {
       headers: getAuthHeaders(token),
     });

@@ -18,6 +18,7 @@ interface ScoreResponse {
   rank: number;
   newHighestScore: boolean;
   newlyUnlockedAchievements: string[];
+  username: string;
 }
 
 export async function submitScore(userId: string, input: ScoreInput): Promise<ScoreResponse> {
@@ -78,9 +79,9 @@ export async function submitScore(userId: string, input: ScoreInput): Promise<Sc
     data: updateData,
   });
 
-  // Calculate rank
-  const rank = await prisma.user.count({
-    where: { highestScore: { gt: newHighestScore ? input.score : user.highestScore } },
+  // Calculate rank based on score table
+  const rank = await prisma.score.count({
+    where: { score: { gt: input.score } },
   });
 
   // Check and unlock achievements
@@ -98,5 +99,6 @@ export async function submitScore(userId: string, input: ScoreInput): Promise<Sc
     rank: rank + 1,
     newHighestScore,
     newlyUnlockedAchievements: newlyUnlocked,
+    username: user.username,
   };
 }

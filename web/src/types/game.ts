@@ -35,6 +35,8 @@ export interface FoodTypeConfig {
 export interface FoodState {
   position: Position;
   type: FoodTypeId;
+  spawnTime: number;
+  expireTime: number;
 }
 
 // --- Active Effects ---

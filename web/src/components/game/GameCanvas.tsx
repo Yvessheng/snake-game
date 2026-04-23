@@ -133,7 +133,7 @@ function renderGame(
   drawGrid(ctx);
 
   // Draw food
-  state.foods.forEach((food: FoodState) => drawFood(ctx, food, pulse));
+  state.foods.forEach((food: FoodState) => drawFood(ctx, food, pulse, Date.now()));
 
   // Draw snake
   state.snake.segments.forEach((seg: Position, i: number) => {
@@ -245,7 +245,7 @@ function drawSnakeSegment(
   }
 }
 
-function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number) {
+function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number, now?: number) {
   const config = getFoodConfig(food.type);
   const { x, y } = food.position;
   const px = x * GRID_SIZE;
@@ -261,7 +261,13 @@ function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number
   ctx.strokeRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
 
   // Emoji icon centered
-  ctx.globalAlpha = 1;
+  const timeLeft = food.expireTime - (now ?? 0);
+  const isExpiringSoon = timeLeft < 2000 && timeLeft > 0;
+  if (isExpiringSoon) {
+    ctx.globalAlpha = Math.sin(Date.now() * 0.01) * 0.4 + 0.6;
+  } else {
+    ctx.globalAlpha = 1;
+  }
   ctx.font = '12px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

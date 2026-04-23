@@ -46,18 +46,26 @@ export function LeaderboardPage() {
       <div style={{ background: theme.bg.surface, border: theme.bevel.raised, overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'flex', padding: '4px 10px', borderBottom: `1px solid ${theme.border.default}`, fontSize: 11, color: theme.text.primary, fontWeight: 700, background: '#C0C0C0' }}>
-          <span style={{ width: 60 }}>排名</span>
+          <span style={{ width: 50 }}>排名</span>
           <span style={{ flex: 1 }}>玩家</span>
-          <span style={{ width: 80, textAlign: 'right' }}>最高分</span>
-          <span style={{ width: 60, textAlign: 'right' }}>场次</span>
+          <span style={{ width: 70, textAlign: 'right' }}>分数</span>
+          <span style={{ width: 50, textAlign: 'right' }}>长度</span>
+          <span style={{ width: 70, textAlign: 'right' }}>时长</span>
+          <span style={{ width: 80, textAlign: 'right' }}>时间</span>
         </div>
         <div style={{ background: theme.bg.elevated, border: theme.bevel.sunken, margin: 4, maxHeight: 500, overflow: 'auto' }}>
           {entries.map((entry, i) => {
             const rank = (page - 1) * LIMIT + i + 1;
-            const isCurrentUser = user && entry.id === user.id;
+            const isCurrentUser = user && entry.userId === user.id;
+            const durationSec = Math.floor(entry.gameDuration / 1000);
+            const min = Math.floor(durationSec / 60);
+            const sec = durationSec % 60;
+            const dateStr = entry.playedAt
+              ? new Date(entry.playedAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+              : '';
             return (
               <div
-                key={entry.id}
+                key={entry.userId + '-' + entry.rank + '-' + entry.score}
                 style={{
                   display: 'flex',
                   padding: '3px 10px',
@@ -66,7 +74,7 @@ export function LeaderboardPage() {
                   fontSize: 12,
                 }}
               >
-                <span style={{ width: 60, display: 'flex', alignItems: 'center' }}>
+                <span style={{ width: 50, display: 'flex', alignItems: 'center' }}>
                   {rank <= 3 ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 18, background: medals[rank - 1], color: '#fff', fontSize: 10, fontWeight: 700 }}>
                       {rank}
@@ -79,8 +87,10 @@ export function LeaderboardPage() {
                   {entry.username}
                   {isCurrentUser && <span style={{ color: '#fff', marginLeft: 6, fontSize: 10, fontWeight: 700 }}>你</span>}
                 </span>
-                <span style={{ width: 80, textAlign: 'right', color: theme.accent.green, fontWeight: 700 }}>{entry.highestScore}</span>
-                <span style={{ width: 60, textAlign: 'right', color: theme.text.muted }}>{entry.totalGames}</span>
+                <span style={{ width: 70, textAlign: 'right', color: theme.accent.green, fontWeight: 700 }}>{entry.score}</span>
+                <span style={{ width: 50, textAlign: 'right', color: theme.text.secondary }}>{entry.snakeLength}</span>
+                <span style={{ width: 70, textAlign: 'right', color: theme.text.muted }}>{min}m {sec}s</span>
+                <span style={{ width: 80, textAlign: 'right', color: theme.text.muted, fontSize: 11 }}>{dateStr}</span>
               </div>
             );
           })}

@@ -15,6 +15,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response, next: Nex
     // Broadcast rank change if user made top 100
     broadcastRankChange({
       userId: req.userId!,
+      username: result.username,
       score: validated.score,
       newRank: result.rank,
     });

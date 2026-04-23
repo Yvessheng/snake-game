@@ -26,17 +26,28 @@ export interface AuthResponse {
 
 export interface LeaderboardEntry {
   rank: number;
-  id: string;
+  userId: string;
   username: string;
-  highestScore: number;
-  totalGames: number;
-  createdAt: string;
+  score: number;
+  snakeLength: number;
+  gameDuration: number;
+  gameMode: string;
+  playedAt: string;
 }
 
 export interface LeaderboardResponse {
   entries: LeaderboardEntry[];
   total: number;
   page: number;
+}
+
+export interface MyRankResponse {
+  userId: string;
+  username: string;
+  highestScore: number;
+  totalGames: number;
+  totalScore: number;
+  rank: number;
 }
 
 export interface ScoreSubmission {

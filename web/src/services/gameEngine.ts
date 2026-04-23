@@ -219,6 +219,9 @@ export class GameEngine {
     // Check zone unlocks
     this.checkZoneUnlocks();
 
+    // Check and remove expired foods
+    this.checkExpiredFoods();
+
     // Update current zone
     this.state.currentZone = getZoneForPosition(head, this.state.unlockedZones);
 
@@ -326,6 +329,11 @@ export class GameEngine {
     }
   }
 
+  private checkExpiredFoods(): void {
+    const now = Date.now();
+    this.state.foods = this.state.foods.filter((food) => food.expireTime > now);
+  }
+
   private spawnFood(): void {
     while (this.state.foods.length < MIN_FOOD_TO_SPAWN) {
       this.addFood();
@@ -343,9 +351,13 @@ export class GameEngine {
       const others = this.state.unlockedZones.filter((z) => z !== this.state.currentZone);
       zoneId = others[Math.floor(Math.random() * others.length)];
     }
+    const now = Date.now();
+    const expireMs = (5000 + Math.random() * 5000); // 5-10 seconds
     this.state.foods.push({
       position: randomFoodPositionInZone(zoneId, this.state.snake.segments),
       type,
+      spawnTime: now,
+      expireTime: now + expireMs,
     });
   }
 
@@ -369,7 +381,7 @@ export class GameEngine {
     const snake: SnakeState = { segments: [...INITIAL_SNAKE], direction: 'right' };
     return {
       snake,
-      foods: [{ position: randomFoodPositionInZone('center', snake.segments), type: 'apple' }],
+      foods: [{ position: randomFoodPositionInZone('center', snake.segments), type: 'apple', spawnTime: Date.now(), expireTime: Date.now() + 10000 }],
       score: 0,
       status: 'idle',
       speed: BASE_TICK_MS,
