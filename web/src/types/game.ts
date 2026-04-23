@@ -66,6 +66,12 @@ export interface ZoneConfig {
   description: string;
 }
 
+export interface ZoneUnlockNotification {
+  zone: ZoneId;
+  zoneName: string;
+  timestamp: number;
+}
+
 // --- Game State ---
 
 export interface GameState {

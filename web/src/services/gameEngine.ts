@@ -28,6 +28,7 @@ import { checkWallCollision, checkSelfCollision, randomFoodPositionInZone } from
 
 export type GameEventType = 'eat' | 'die' | 'start' | 'zone_unlock' | 'food_new';
 export type GameEventCallback = (type: GameEventType, data?: unknown) => void;
+export type { GameState } from '../types/game';
 
 const INITIAL_SNAKE: Position[] = [
   { x: 20, y: 20 },

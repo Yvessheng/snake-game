@@ -3,11 +3,8 @@ export {
   GRID_SIZE,
   GRID_COUNT,
   CANVAS_SIZE,
-  INITIAL_SPEED,
-  MIN_SPEED,
-  SPEED_DECREASE,
-  SCORE_PER_FOOD,
-  POINTS_PER_SPEED_UP,
+  BASE_TICK_MS,
+  MIN_TICK_MS,
   oppositeDirection,
 } from '../types/game';
 

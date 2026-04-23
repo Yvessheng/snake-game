@@ -59,7 +59,7 @@ export function GameCanvas({ state, skinId = 'classic' }: GameCanvasProps) {
     const prev = prevFoodsRef.current;
     const curr = state.foods;
     for (const pf of prev) {
-      if (!curr.some((f) => f.position.x === pf.position.x && f.position.y === pf.position.y)) {
+      if (!curr.some((f: FoodState) => f.position.x === pf.position.x && f.position.y === pf.position.y)) {
         // This food was eaten
         const config = getFoodConfig(pf.type);
         addParticles(pf.position.x, pf.position.y, config.color, 6);
@@ -133,10 +133,10 @@ function renderGame(
   drawGrid(ctx);
 
   // Draw food
-  state.foods.forEach((food) => drawFood(ctx, food, pulse));
+  state.foods.forEach((food: FoodState) => drawFood(ctx, food, pulse));
 
   // Draw snake
-  state.snake.segments.forEach((seg, i) => {
+  state.snake.segments.forEach((seg: Position, i: number) => {
     drawSnakeSegment(ctx, seg, i === 0, skin, state.shieldActive);
   });
 
@@ -245,7 +245,7 @@ function drawSnakeSegment(
   }
 }
 
-function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, pulse: number) {
+function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number) {
   const config = getFoodConfig(food.type);
   const { x, y } = food.position;
   const px = x * GRID_SIZE;

@@ -8,15 +8,10 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import { soundManager } from '../services/soundManager';
 import { CANVAS_SIZE, ZONES, getZoneConfig, getFoodConfig, FOOD_TYPES } from '../types/game';
-import type { ZoneNotification, FoodTypeId } from '../types/game';
+import type { ZoneUnlockNotification, FoodTypeId } from '../types/game';
 import type { SkinId } from '../types/skins';
 import { loadSkin } from '../types/skins';
 import { theme } from '../types/theme';
-
-interface ZoneUnlockNotification {
-  zoneName: string;
-  timestamp: number;
-}
 
 interface RewardNotification {
   id: number;
@@ -99,7 +94,7 @@ export function GamePage() {
   const [skinId] = useState<SkinId>(() => loadSkin());
   const [gameState, setGameState] = useState<GameState>(() => new GameEngine().getState());
   const engineRef = useRef<GameEngine>(new GameEngine(setGameState));
-  const [zoneNotifications, setZoneNotifications] = useState<ZoneUnlockNotification[]>([]);
+  const [zoneNotifications, setZoneNotifications] = useState<Array<{zoneName: string; timestamp: number}>>([]);
   const [rewardNotifications, setRewardNotifications] = useState<RewardNotification[]>([]);
   const currentZoneRef = useRef(gameState.currentZone);
   currentZoneRef.current = gameState.currentZone;
@@ -114,7 +109,6 @@ export function GamePage() {
       soundManager.play('eat', eatData?.type);
       if (eatData?.type) {
         const config = getFoodConfig(eatData.type);
-        const zoneConfig = getZoneConfig(currentZoneRef.current);
         rewardIdCounter++;
         setRewardNotifications((prev) => [
           ...prev,
@@ -214,7 +208,7 @@ export function GamePage() {
           </div>
         ))}
         {/* Reward notifications */}
-        {rewardNotifications.map((n, i) => (
+        {rewardNotifications.map((n) => (
           <div key={'r' + n.id} style={{ background: '#FFFFFF', border: '3px outset #C0C0C0', padding: '6px 20px', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'center', color: '#000' }}>
             {n.text} <span style={{ color: '#008000', fontWeight: 700 }}>+{n.score}</span>
           </div>
@@ -265,8 +259,8 @@ export function GamePage() {
               {gameState.activeEffects.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
                   <div style={{ fontSize: 10, color: theme.text.muted, marginBottom: 2 }}>效果</div>
-                  {gameState.activeEffects.map((e, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: theme.text.primary }}>
+                  {gameState.activeEffects.map((e, _i) => (
+                    <div key={_i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: theme.text.primary }}>
                       <span>{e.type === 'speedBoost' ? '⚡加速' : e.type === 'shield' ? '🛡护盾' : '🌀随机'}</span>
                       <span style={{ fontFamily: 'monospace' }}>{Math.ceil(e.remainingTicks / 8)}s</span>
                     </div>

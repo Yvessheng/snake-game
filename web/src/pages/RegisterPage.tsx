@@ -15,7 +15,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: FormEvent) => {
+  const _handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (password.length < 8) {
