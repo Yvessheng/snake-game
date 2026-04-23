@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { theme } from '../types/theme';
 
 interface LoginPageProps {
@@ -14,8 +13,7 @@ export function LoginPage({ onLogin, onGoToRegister, onGoHome }: LoginPageProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     setError('');
     setLoading(true);
     try {
@@ -59,7 +57,7 @@ export function LoginPage({ onLogin, onGoToRegister, onGoHome }: LoginPageProps)
 
           <button
             type="button"
-            onClick={(e) => { (e.target as HTMLButtonElement).form?.requestSubmit(); }}
+            onClick={handleLogin}
             disabled={loading}
             style={{ width: '100%', padding: '6px 0', background: '#C0C0C0', border: '2px outset #FFFFFF', color: '#000', fontWeight: 700, fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer', outline: 'none' }}
             onMouseDown={(e) => { if (!loading) (e.target as HTMLButtonElement).style.borderStyle = 'inset'; }}

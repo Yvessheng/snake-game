@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { theme } from '../types/theme';
 
 interface RegisterPageProps {
@@ -15,8 +14,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async () => {
     setError('');
     if (password.length < 8) {
       setError('密码至少需要8个字符');
@@ -68,7 +66,7 @@ export function RegisterPage({ onRegister, onGoToLogin, onGoHome }: RegisterPage
 
           <button
             type="button"
-            onClick={(e) => { (e.target as HTMLButtonElement).form?.requestSubmit(); }}
+            onClick={handleRegister}
             disabled={loading}
             style={{ width: '100%', padding: '6px 0', background: '#C0C0C0', border: '2px outset #FFFFFF', color: '#000', fontWeight: 700, fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer', outline: 'none' }}
             onMouseDown={(e) => { if (!loading) (e.target as HTMLButtonElement).style.borderStyle = 'inset'; }}
