@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { GRID_SIZE, CANVAS_SIZE, getZoneConfig, getFoodConfig, isPunishmentFood, ZONES } from '../../types/game';
+import { GRID_SIZE, CANVAS_SIZE, getFoodConfig, isPunishmentFood, ZONES } from '../../types/game';
 import type { Position, FoodState, ZoneId, PendingEffect } from '../../types/game';
 import type { GameState } from '../../services/gameEngine';
 import type { SkinId } from '../../types/skins';
@@ -166,8 +166,8 @@ function renderGame(
 function drawZones(
   ctx: CanvasRenderingContext2D,
   unlockedZones: ZoneId[],
-  currentZone: ZoneId,
-  pulse: number
+  _currentZone: ZoneId,
+  _pulse: number
 ) {
   // Draw unlocked zones (outermost first)
   const sorted = [...ZONES].filter((z) => unlockedZones.includes(z.id)).reverse();
