@@ -1,4 +1,7 @@
-type SoundType = 'eat' | 'eat_apple' | 'eat_berry' | 'eat_nut' | 'eat_mushroom' | 'eat_cactus' | 'eat_chili' | 'die' | 'start' | 'zone_unlock';
+type SoundType = 'eat' | 'eat_apple' | 'eat_berry' | 'eat_nut' | 'eat_mushroom' | 'eat_cactus' | 'eat_chili'
+  | 'eat_stinkyMushroom' | 'eat_rottenTomato' | 'eat_poisonApple'
+  | 'punishment_eat' | 'effect_alarm' | 'effect_warning' | 'effect_end'
+  | 'die' | 'start' | 'zone_unlock';
 
 interface SoundDef {
   frequency: number;
@@ -33,6 +36,39 @@ const SOUNDS: Record<SoundType, SoundDef[]> = {
     { frequency: 523, duration: 100, type: 'sine', sweep: 659 },
     { frequency: 659, duration: 100, type: 'sine', sweep: 784 },
     { frequency: 784, duration: 150, type: 'sine', sweep: 1047 },
+  ],
+  // Punishment food eat: descending ominous tone
+  punishment_eat: [
+    { frequency: 440, duration: 100, type: 'square', sweep: 220 },
+    { frequency: 220, duration: 100, type: 'square', sweep: 110 },
+  ],
+  eat_stinkyMushroom: [
+    { frequency: 440, duration: 80, type: 'square', sweep: 220 },
+    { frequency: 220, duration: 120, type: 'square', sweep: 110 },
+  ],
+  eat_rottenTomato: [
+    { frequency: 400, duration: 80, type: 'square', sweep: 200 },
+    { frequency: 200, duration: 120, type: 'square', sweep: 100 },
+  ],
+  eat_poisonApple: [
+    { frequency: 440, duration: 60, type: 'square', sweep: 220 },
+    { frequency: 220, duration: 60, type: 'square', sweep: 110 },
+    { frequency: 110, duration: 80, type: 'square' },
+  ],
+  // Effect trigger alarm: repeated beeps
+  effect_alarm: [
+    { frequency: 440, duration: 60, type: 'square' },
+    { frequency: 440, duration: 60, type: 'square' },
+    { frequency: 440, duration: 60, type: 'square' },
+  ],
+  // Warning: single descending alert
+  effect_warning: [
+    { frequency: 600, duration: 80, type: 'triangle', sweep: 300 },
+  ],
+  // Effect end: gentle ascending
+  effect_end: [
+    { frequency: 330, duration: 60, type: 'sine', sweep: 440 },
+    { frequency: 440, duration: 60, type: 'sine', sweep: 550 },
   ],
 };
 

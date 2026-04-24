@@ -15,9 +15,11 @@ export interface SnakeState {
 
 // --- Food Types ---
 
-export type FoodTypeId = 'apple' | 'berry' | 'nut' | 'mushroom' | 'cactus' | 'chili';
+export type FoodTypeId = 'apple' | 'berry' | 'nut' | 'mushroom' | 'cactus' | 'chili'
+  | 'stinkyMushroom' | 'rottenTomato' | 'poisonApple';
 
-export type FoodEffectType = 'none' | 'speedBoost' | 'shield' | 'randomDir';
+export type FoodEffectType = 'none' | 'speedBoost' | 'shield' | 'randomDir'
+  | 'temporaryLength' | 'scorePenalty' | 'reverseControls';
 
 export interface FoodTypeConfig {
   id: FoodTypeId;
@@ -45,6 +47,21 @@ export interface ActiveEffect {
   type: FoodEffectType;
   remainingTicks: number;
   value: number;
+}
+
+export interface PendingEffect {
+  type: FoodEffectType;
+  triggerAt: number;
+  warningAt: number;
+  effect: ActiveEffect;
+  sourceFood?: FoodTypeId;
+  warningShown: boolean;
+  triggered: boolean;
+}
+
+export interface TemporarySegment {
+  count: number;
+  expiresAt: number;
 }
 
 // --- Zone System ---
@@ -87,11 +104,14 @@ export interface GameState {
   unlockedZones: ZoneId[];
   collectedFoodTypes: FoodTypeId[];
   activeEffects: ActiveEffect[];
+  pendingEffects: PendingEffect[];
+  temporarySegments: TemporarySegment[];
   combo: number;
   lastEatTime: number;
   speedMultiplier: number;
   shieldActive: boolean;
   randomDirActive: boolean;
+  reversedControls: boolean;
 }
 
 // --- Constants ---
@@ -123,21 +143,21 @@ export const ZONES: ZoneConfig[] = [
     id: 'forest', name: '森林区',
     bounds: { minX: 5, minY: 5, maxX: 35, maxY: 35 },
     bgColor: '#779977', borderColor: '#88AA88',
-    speedMod: 0.95, scoreMultiplier: 1.2, unlockLength: 8,
+    speedMod: 0.95, scoreMultiplier: 1.2, unlockLength: 40,
     description: '速度-5%',
   },
   {
     id: 'desert', name: '沙漠区',
     bounds: { minX: 0, minY: 0, maxX: 39, maxY: 39 },
     bgColor: '#AA9966', borderColor: '#BBAA77',
-    speedMod: 0.9, scoreMultiplier: 1.5, unlockLength: 15,
+    speedMod: 0.9, scoreMultiplier: 1.5, unlockLength: 80,
     description: '速度-10%',
   },
   {
     id: 'lava', name: '熔岩区',
     bounds: { minX: 0, minY: 0, maxX: 39, maxY: 39 },
     bgColor: '#994444', borderColor: '#AA5555',
-    speedMod: 1.0, scoreMultiplier: 2.0, unlockLength: 25,
+    speedMod: 1.0, scoreMultiplier: 2.0, unlockLength: 130,
     description: '高风险高回报',
   },
 ];
@@ -150,6 +170,9 @@ export const FOOD_TYPES: FoodTypeConfig[] = [
   { id: 'mushroom', name: '治疗蘑菇', icon: '🍄', score: 20, lengthGrowth: 2, color: '#CC6699', effect: 'shield', effectDuration: 0, weight: 10, availableZones: ['forest', 'desert', 'lava'] },
   { id: 'cactus', name: '仙人掌果', icon: '🌵', score: 30, lengthGrowth: 3, color: '#33AA33', effect: 'randomDir', effectDuration: 33, weight: 8, availableZones: ['desert', 'lava'] },
   { id: 'chili', name: '火焰辣椒', icon: '🌶️', score: 10, lengthGrowth: 1, color: '#CC6600', effect: 'speedBoost', effectDuration: 25, weight: 7, availableZones: ['lava'] },
+  { id: 'stinkyMushroom', name: '臭蘑菇', icon: '💩', score: 5, lengthGrowth: 1, color: '#666666', effect: 'temporaryLength', effectDuration: 0, weight: 5, availableZones: ['forest', 'desert', 'lava'] },
+  { id: 'rottenTomato', name: '烂番茄', icon: '🍅', score: 3, lengthGrowth: 1, color: '#CC3333', effect: 'scorePenalty', effectDuration: 0, weight: 3, availableZones: ['desert', 'lava'] },
+  { id: 'poisonApple', name: '毒苹果', icon: '🍏', score: 5, lengthGrowth: 1, color: '#663366', effect: 'reverseControls', effectDuration: 0, weight: 2, availableZones: ['lava'] },
 ];
 
 // --- Helper Functions ---
@@ -187,4 +210,10 @@ export function getFoodGrowth(type: FoodTypeId): number {
 export function oppositeDirection(dir: Direction): Direction {
   const map: Record<Direction, Direction> = { up: 'down', down: 'up', left: 'right', right: 'left' };
   return map[dir];
+}
+
+export const PUNISHMENT_FOOD_IDS: FoodTypeId[] = ['stinkyMushroom', 'rottenTomato', 'poisonApple'];
+
+export function isPunishmentFood(type: FoodTypeId): boolean {
+  return PUNISHMENT_FOOD_IDS.includes(type);
 }

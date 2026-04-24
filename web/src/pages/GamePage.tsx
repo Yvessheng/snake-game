@@ -7,7 +7,7 @@ import { useKeyboard } from '../hooks/useKeyboard';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import { soundManager } from '../services/soundManager';
-import { CANVAS_SIZE, ZONES, getZoneConfig, getFoodConfig, FOOD_TYPES } from '../types/game';
+import { CANVAS_SIZE, ZONES, getZoneConfig, getFoodConfig, isPunishmentFood, FOOD_TYPES } from '../types/game';
 import type { FoodTypeId } from '../types/game';
 import type { SkinId } from '../types/skins';
 import { loadSkin } from '../types/skins';
@@ -20,7 +20,15 @@ interface RewardNotification {
   timestamp: number;
 }
 
+interface EffectNotification {
+  id: number;
+  text: string;
+  type: 'warning' | 'negative';
+  timestamp: number;
+}
+
 let rewardIdCounter = 0;
+let effectNotifIdCounter = 0;
 
 function GameOverModal({
   score,
@@ -96,6 +104,7 @@ export function GamePage() {
   const engineRef = useRef<GameEngine>(new GameEngine(setGameState));
   const [zoneNotifications, setZoneNotifications] = useState<Array<{zoneName: string; timestamp: number}>>([]);
   const [rewardNotifications, setRewardNotifications] = useState<RewardNotification[]>([]);
+  const [effectNotifications, setEffectNotifications] = useState<EffectNotification[]>([]);
   const currentZoneRef = useRef(gameState.currentZone);
   currentZoneRef.current = gameState.currentZone;
 
@@ -106,7 +115,11 @@ export function GamePage() {
   const handleGameEvent = useCallback((type: string, data?: unknown) => {
     if (type === 'eat') {
       const eatData = data as { type: FoodTypeId } | undefined;
-      soundManager.play('eat', eatData?.type);
+      if (eatData?.type && isPunishmentFood(eatData.type)) {
+        soundManager.play('punishment_eat', eatData.type);
+      } else {
+        soundManager.play('eat', eatData?.type);
+      }
       if (eatData?.type) {
         const config = getFoodConfig(eatData.type);
         rewardIdCounter++;
@@ -129,6 +142,34 @@ export function GamePage() {
         ]);
         soundManager.play('zone_unlock');
       }
+    } else if (type === 'pending_effect_start') {
+      const d = data as { type: FoodTypeId } | undefined;
+      if (d?.type) {
+        const config = getFoodConfig(d.type);
+        effectNotifIdCounter++;
+        setEffectNotifications((prev) => [
+          ...prev,
+          { id: effectNotifIdCounter, text: `${config.icon} 小心！5-15秒后生效！`, type: 'warning', timestamp: Date.now() },
+        ]);
+      }
+    } else if (type === 'pending_effect_warning') {
+      soundManager.play('effect_warning');
+    } else if (type === 'effect_trigger') {
+      const d = data as { type: string; value?: number; count?: number } | undefined;
+      soundManager.play('effect_alarm');
+      effectNotifIdCounter++;
+      let text = '';
+      if (d?.type === 'scorePenalty') text = `💩 -${d.value}分!`;
+      else if (d?.type === 'reverseControls') text = '🔄 方向反转!';
+      else if (d?.type === 'temporaryLength') text = `💩 蛇身临时+${d.count}格!`;
+      if (text) {
+        setEffectNotifications((prev) => [
+          ...prev,
+          { id: effectNotifIdCounter, text, type: 'negative', timestamp: Date.now() },
+        ]);
+      }
+    } else if (type === 'effect_end') {
+      soundManager.play('effect_end');
     }
   }, []);
 
@@ -142,6 +183,7 @@ export function GamePage() {
     const timer = setInterval(() => {
       setZoneNotifications((prev) => prev.filter((n) => Date.now() - n.timestamp < 5000));
       setRewardNotifications((prev) => prev.filter((n) => Date.now() - n.timestamp < 2000));
+      setEffectNotifications((prev) => prev.filter((n) => Date.now() - n.timestamp < 4000));
     }, 500);
     return () => clearInterval(timer);
   }, []);
@@ -167,6 +209,7 @@ export function GamePage() {
     engineRef.current.reset();
     setZoneNotifications([]);
     setRewardNotifications([]);
+    setEffectNotifications([]);
   }, []);
 
   const handleHome = useCallback(() => { window.location.hash = '/'; }, []);
@@ -211,6 +254,18 @@ export function GamePage() {
         {rewardNotifications.map((n) => (
           <div key={'r' + n.id} style={{ background: '#FFFFFF', border: '3px outset #C0C0C0', padding: '6px 20px', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'center', color: '#000' }}>
             {n.text} <span style={{ color: '#008000', fontWeight: 700 }}>+{n.score}</span>
+          </div>
+        ))}
+        {/* Effect notifications */}
+        {effectNotifications.map((n) => (
+          <div key={'e' + n.id} style={{
+            background: n.type === 'negative' ? '#FFCCCC' : '#FFFFCC',
+            border: n.type === 'negative' ? '3px outset #CC3333' : '3px outset #CCCC00',
+            padding: '6px 20px', fontSize: 14, fontWeight: 700,
+            whiteSpace: 'nowrap', textAlign: 'center',
+            color: n.type === 'negative' ? '#CC0000' : '#666600',
+          }}>
+            {n.text}
           </div>
         ))}
       </div>
@@ -259,29 +314,76 @@ export function GamePage() {
               {gameState.activeEffects.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
                   <div style={{ fontSize: 10, color: theme.text.muted, marginBottom: 2 }}>效果</div>
-                  {gameState.activeEffects.map((e, _i) => (
-                    <div key={_i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: theme.text.primary }}>
-                      <span>{e.type === 'speedBoost' ? '⚡加速' : e.type === 'shield' ? '🛡护盾' : '🌀随机'}</span>
-                      <span style={{ fontFamily: 'monospace' }}>{Math.ceil(e.remainingTicks / 8)}s</span>
-                    </div>
-                  ))}
+                  {gameState.activeEffects.map((e, _i) => {
+                    const isNegative = e.type === 'reverseControls' || e.type === 'temporaryLength';
+                    return (
+                      <div key={_i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: isNegative ? theme.accent.pink : theme.text.primary }}>
+                        <span>{
+                          e.type === 'speedBoost' ? '⚡加速'
+                            : e.type === 'shield' ? '🛡护盾'
+                            : e.type === 'randomDir' ? '🌀随机'
+                            : e.type === 'reverseControls' ? '🔄反转'
+                            : e.type === 'temporaryLength' ? '💩临时长度'
+                            : e.type
+                        }</span>
+                        <span style={{ fontFamily: 'monospace' }}>{Math.ceil(e.remainingTicks / 8)}s</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pending effects */}
+              {gameState.pendingEffects.filter((p) => !p.triggered).length > 0 && (
+                <div style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, color: theme.text.muted, marginBottom: 2 }}>即将触发</div>
+                  {gameState.pendingEffects.filter((p) => !p.triggered).map((p, i) => {
+                    const countdown = Math.max(0, Math.ceil((p.triggerAt - Date.now()) / 1000));
+                    const isWarning = countdown <= 3;
+                    const config = p.sourceFood ? getFoodConfig(p.sourceFood) : null;
+                    return (
+                      <div key={'pe' + i} style={{
+                        display: 'flex', justifyContent: 'space-between', fontSize: 10,
+                        color: isWarning ? theme.accent.pink : theme.text.primary,
+                      }}>
+                        <span>{config?.icon ?? '?'} {
+                          p.type === 'temporaryLength' ? '临时长度'
+                            : p.type === 'scorePenalty' ? '扣分'
+                            : p.type === 'reverseControls' ? '方向反转'
+                            : p.type
+                        }</span>
+                        <span style={{ fontFamily: 'monospace' }}>{countdown}s</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {/* Food collection */}
               <div style={{ marginBottom: 6, flex: 1 }}>
                 <div style={{ fontSize: 10, color: theme.text.muted, marginBottom: 2 }}>食物图鉴</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {FOOD_TYPES.map((f) => {
                     const collected = gameState.collectedFoodTypes.includes(f.id);
+                    const reward = f.effect === 'none'
+                      ? `+${f.score}分 +${f.lengthGrowth}格`
+                      : f.effect === 'speedBoost' ? `⚡加速 +${f.score}分`
+                      : f.effect === 'shield' ? `🛡护盾 +${f.score}分`
+                      : f.effect === 'randomDir' ? `🌀失控 +${f.score}分`
+                      : f.effect === 'temporaryLength' ? `💩延迟+5格`
+                      : f.effect === 'scorePenalty' ? `💩延迟-200分`
+                      : f.effect === 'reverseControls' ? `💩方向反转`
+                      : '';
                     return (
                       <div key={f.id} style={{
-                        textAlign: 'center', padding: '2px 0',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        padding: '3px 6px',
                         opacity: collected ? 1 : 0.3,
                         background: collected ? '#FFFFFF' : 'transparent',
                         border: collected ? theme.bevel.sunken : '1px solid #808080',
                       }}>
-                        <span style={{ fontSize: 10 }}>{f.icon}</span>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>{f.icon}</span>
+                        <span style={{ fontSize: 10, lineHeight: 1.2, color: theme.text.primary }}>{reward}</span>
                       </div>
                     );
                   })}

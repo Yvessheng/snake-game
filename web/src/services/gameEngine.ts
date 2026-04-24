@@ -11,6 +11,7 @@ import {
   getFoodGrowth,
   getFoodConfig,
   getZoneForPosition,
+  isPunishmentFood,
   ZONES,
   FOOD_TYPES,
 } from '../types/game';
@@ -23,10 +24,12 @@ import type {
   GameState,
   ZoneId,
   ZoneBounds,
+  PendingEffect,
 } from '../types/game';
 import { checkWallCollision, checkSelfCollision, randomFoodPositionInZone } from '../utils/collision';
 
-export type GameEventType = 'eat' | 'die' | 'start' | 'zone_unlock' | 'food_new';
+export type GameEventType = 'eat' | 'die' | 'start' | 'zone_unlock' | 'food_new'
+  | 'pending_effect_start' | 'pending_effect_warning' | 'effect_trigger' | 'effect_end';
 export type GameEventCallback = (type: GameEventType, data?: unknown) => void;
 export type { GameState } from '../types/game';
 
@@ -121,8 +124,14 @@ export class GameEngine {
   setDirection(dir: Direction): void {
     if (this.state.status !== 'running') return;
     if (dir === this.state.snake.direction) return;
-    if (dir === oppositeDirection(this.state.snake.direction)) return;
-    this.state.snake.direction = dir;
+
+    let actualDir = dir;
+    if (this.state.reversedControls) {
+      actualDir = oppositeDirection(dir);
+    }
+
+    if (actualDir === oppositeDirection(this.state.snake.direction)) return;
+    this.state.snake.direction = actualDir;
   }
 
   // Execute one game tick
@@ -211,6 +220,12 @@ export class GameEngine {
     // Update active effects (decrement timers)
     this.updateEffects();
 
+    // Check and trigger pending effects
+    this.checkPendingEffects();
+
+    // Check temporary segment expiry
+    this.checkTemporarySegments();
+
     // Check combo timeout
     if (Date.now() - this.state.lastEatTime > COMBO_TIMEOUT_MS && this.state.combo > 0) {
       this.state.combo = 0;
@@ -258,7 +273,30 @@ export class GameEngine {
 
     // Apply food effect
     if (foodConfig.effect !== 'none') {
-      if (foodConfig.effect === 'shield') {
+      if (isPunishmentFood(food.type)) {
+        // Punishment food: create pending effect with 5-15s random delay
+        const delay = 5000 + Math.random() * 10000;
+        const now = Date.now();
+        const effectTicks = foodConfig.effect === 'reverseControls'
+          ? Math.round(10000 / this.state.speed)
+          : 0;
+        this.state.pendingEffects.push({
+          type: foodConfig.effect,
+          triggerAt: now + delay,
+          warningAt: now + delay - 3000,
+          effect: {
+            type: foodConfig.effect,
+            remainingTicks: effectTicks,
+            value: foodConfig.effect === 'temporaryLength' ? 5
+              : foodConfig.effect === 'scorePenalty' ? 200
+              : 0,
+          },
+          sourceFood: food.type,
+          warningShown: false,
+          triggered: false,
+        });
+        this.onEvent?.('pending_effect_start', { type: food.type, triggerAt: now + delay });
+      } else if (foodConfig.effect === 'shield') {
         this.state.shieldActive = true;
         this.state.activeEffects.push({
           type: 'shield',
@@ -295,6 +333,12 @@ export class GameEngine {
     // Update speed multiplier from effects
     const speedBoost = this.state.activeEffects.find((e) => e.type === 'speedBoost');
     this.state.speedMultiplier = speedBoost ? speedBoost.value : 1;
+
+    // Update reversed controls flag from effects
+    const reverseActive = this.state.activeEffects.some((e) => e.type === 'reverseControls');
+    if (!reverseActive) {
+      this.state.reversedControls = false;
+    }
   }
 
   private updateSpeed(): void {
@@ -332,6 +376,77 @@ export class GameEngine {
   private checkExpiredFoods(): void {
     const now = Date.now();
     this.state.foods = this.state.foods.filter((food) => food.expireTime > now);
+  }
+
+  private checkPendingEffects(): void {
+    const now = Date.now();
+
+    for (const pending of this.state.pendingEffects) {
+      if (pending.triggered) continue;
+
+      if (!pending.warningShown && now >= pending.warningAt) {
+        pending.warningShown = true;
+        this.onEvent?.('pending_effect_warning', {
+          type: pending.type,
+          countdown: 3,
+          sourceFood: pending.sourceFood,
+        });
+      }
+
+      if (now >= pending.triggerAt) {
+        pending.triggered = true;
+        this.applyPendingEffect(pending);
+      }
+    }
+
+    this.state.pendingEffects = this.state.pendingEffects.filter(
+      (p) => !p.triggered || now < p.triggerAt + 10000,
+    );
+  }
+
+  private applyPendingEffect(pending: PendingEffect): void {
+    switch (pending.type) {
+      case 'temporaryLength':
+        this.applyTemporaryLength(pending.effect.value);
+        break;
+      case 'scorePenalty':
+        this.state.score = Math.max(0, this.state.score - pending.effect.value);
+        this.onEvent?.('effect_trigger', { type: 'scorePenalty', value: pending.effect.value });
+        break;
+      case 'reverseControls':
+        this.state.reversedControls = true;
+        this.state.activeEffects.push({
+          type: 'reverseControls',
+          remainingTicks: pending.effect.remainingTicks,
+          value: 1,
+        });
+        this.onEvent?.('effect_trigger', { type: 'reverseControls' });
+        break;
+    }
+  }
+
+  private applyTemporaryLength(count: number): void {
+    const tail = this.state.snake.segments[this.state.snake.segments.length - 1];
+    for (let i = 0; i < count; i++) {
+      this.state.snake.segments.push({ ...tail });
+    }
+    this.state.temporarySegments.push({ count, expiresAt: Date.now() + 20000 });
+    this.onEvent?.('effect_trigger', { type: 'temporaryLength', count });
+  }
+
+  private checkTemporarySegments(): void {
+    const now = Date.now();
+    this.state.temporarySegments = this.state.temporarySegments.filter((batch) => {
+      if (now >= batch.expiresAt) {
+        const toRemove = Math.min(batch.count, this.state.snake.segments.length - 3);
+        if (toRemove > 0) {
+          this.state.snake.segments.splice(this.state.snake.segments.length - toRemove, toRemove);
+        }
+        this.onEvent?.('effect_end', { type: 'temporaryLength' });
+        return false;
+      }
+      return true;
+    });
   }
 
   private spawnFood(): void {
@@ -390,11 +505,14 @@ export class GameEngine {
       unlockedZones: ['center'],
       collectedFoodTypes: [],
       activeEffects: [],
+      pendingEffects: [],
+      temporarySegments: [],
       combo: 0,
       lastEatTime: 0,
       speedMultiplier: 1,
       shieldActive: false,
       randomDirActive: false,
+      reversedControls: false,
     };
   }
 

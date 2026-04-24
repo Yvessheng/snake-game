@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { GRID_SIZE, CANVAS_SIZE, getZoneConfig, getFoodConfig, ZONES } from '../../types/game';
-import type { Position, FoodState, ZoneId } from '../../types/game';
+import { GRID_SIZE, CANVAS_SIZE, getZoneConfig, getFoodConfig, isPunishmentFood, ZONES } from '../../types/game';
+import type { Position, FoodState, ZoneId, PendingEffect } from '../../types/game';
 import type { GameState } from '../../services/gameEngine';
 import type { SkinId } from '../../types/skins';
 import { getSkin } from '../../types/skins';
@@ -129,16 +129,26 @@ function renderGame(
   // Draw zone backgrounds
   drawZones(ctx, state.unlockedZones, state.currentZone, pulse);
 
+  // Draw brick wall at boundary
+  drawBrickWall(ctx, state.unlockedZones, pulse);
+
   // Draw grid
   drawGrid(ctx);
 
   // Draw food
   state.foods.forEach((food: FoodState) => drawFood(ctx, food, pulse, Date.now()));
 
-  // Draw snake
+  // Draw snake (handle temporary segments)
+  const tempCount = state.temporarySegments.reduce((sum, b) => sum + b.count, 0);
+  const totalSegs = state.snake.segments.length;
   state.snake.segments.forEach((seg: Position, i: number) => {
-    drawSnakeSegment(ctx, seg, i === 0, skin, state.shieldActive);
+    const isTemp = i >= totalSegs - tempCount;
+    drawSnakeSegment(ctx, seg, i === 0, skin, state.shieldActive, isTemp);
   });
+
+  // Draw pending effect warning above head
+  const head = state.snake.segments[0];
+  drawPendingEffectWarning(ctx, head, state.pendingEffects, pulse);
 
   // Draw particles
   updateParticles(ctx);
@@ -171,21 +181,96 @@ function drawZones(
       (bounds.maxY - bounds.minY + 1) * GRID_SIZE,
     );
   }
+}
 
-  // Draw current zone highlight border with pulse
-  const currentConfig = getZoneConfig(currentZone);
-  const { bounds, borderColor } = currentConfig;
-  const pulseAlpha = 0.3 + 0.2 * Math.sin(pulse);
-  ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 3;
+function drawBrickWall(
+  ctx: CanvasRenderingContext2D,
+  unlockedZones: ZoneId[],
+  pulse: number
+) {
+  // Get the largest unlocked zone boundary
+  let bounds = ZONES[0].bounds;
+  for (const zone of ZONES) {
+    if (unlockedZones.includes(zone.id)) {
+      bounds = zone.bounds;
+    }
+  }
+
+  const BRICK_W = GRID_SIZE * 2;
+  const BRICK_H = GRID_SIZE;
+  const MORTAR = 2;
+  const pulseAlpha = 0.85 + 0.15 * Math.sin(pulse * 2);
+
   ctx.globalAlpha = pulseAlpha;
-  ctx.strokeRect(
-    bounds.minX * GRID_SIZE + 1.5,
-    bounds.minY * GRID_SIZE + 1.5,
-    (bounds.maxX - bounds.minX + 1) * GRID_SIZE - 3,
-    (bounds.maxY - bounds.minY + 1) * GRID_SIZE - 3,
-  );
+
+  const topY = Math.max(0, (bounds.minY - 1) * GRID_SIZE);
+  drawBrickRow(ctx, bounds.minX * GRID_SIZE, topY,
+    (bounds.maxX - bounds.minX + 1) * GRID_SIZE, BRICK_H, BRICK_W, MORTAR, true);
+
+  const bottomY = Math.min(CANVAS_SIZE - BRICK_H, (bounds.maxY + 1) * GRID_SIZE);
+  drawBrickRow(ctx, bounds.minX * GRID_SIZE, bottomY,
+    (bounds.maxX - bounds.minX + 1) * GRID_SIZE, BRICK_H, BRICK_W, MORTAR, true);
+
+  const leftX = Math.max(0, (bounds.minX - 1) * GRID_SIZE);
+  drawBrickColumn(ctx, leftX, bounds.minY * GRID_SIZE,
+    (bounds.maxY - bounds.minY + 1) * GRID_SIZE, GRID_SIZE, MORTAR);
+
+  const rightX = Math.min(CANVAS_SIZE - GRID_SIZE, (bounds.maxX + 1) * GRID_SIZE);
+  drawBrickColumn(ctx, rightX, bounds.minY * GRID_SIZE,
+    (bounds.maxY - bounds.minY + 1) * GRID_SIZE, GRID_SIZE, MORTAR);
+
   ctx.globalAlpha = 1;
+}
+
+function drawBrickRow(
+  ctx: CanvasRenderingContext2D,
+  startX: number, startY: number,
+  totalWidth: number, brickH: number,
+  brickW: number, mortar: number,
+  offsetRow: boolean
+) {
+  const brickColor = '#CC6633';
+  const mortarColor = '#996633';
+  const offset = offsetRow ? Math.floor(brickW / 2) : 0;
+
+  ctx.fillStyle = mortarColor;
+  ctx.fillRect(startX, startY, totalWidth, brickH);
+
+  ctx.fillStyle = brickColor;
+  let x = startX + offset;
+  while (x < startX + totalWidth) {
+    const w = Math.min(brickW, startX + totalWidth - x);
+    if (w > mortar) {
+      ctx.fillRect(x + Math.floor(mortar / 2), startY + Math.floor(mortar / 2),
+        w - mortar, brickH - mortar);
+    }
+    x += brickW;
+  }
+}
+
+function drawBrickColumn(
+  ctx: CanvasRenderingContext2D,
+  startX: number, startY: number,
+  totalHeight: number,
+  brickW: number, mortar: number
+) {
+  const brickColor = '#CC6633';
+  const mortarColor = '#996633';
+  const brickH = GRID_SIZE;
+
+  ctx.fillStyle = mortarColor;
+  ctx.fillRect(startX, startY, brickW, totalHeight);
+
+  ctx.fillStyle = brickColor;
+  let y = startY;
+  while (y < startY + totalHeight) {
+    const h = Math.min(brickH, startY + totalHeight - y);
+    if (h > mortar) {
+      ctx.fillRect(startX + Math.floor(mortar / 2), y + Math.floor(mortar / 2),
+        brickW - mortar, h - mortar);
+    }
+    y += brickH;
+  }
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D) {
@@ -210,10 +295,17 @@ function drawSnakeSegment(
   pos: Position,
   isHead: boolean,
   skin: ReturnType<typeof getSkin>,
-  shieldActive: boolean
+  shieldActive: boolean,
+  isTemp: boolean = false
 ) {
-  ctx.fillStyle = isHead ? skin.head : skin.body;
+  if (isTemp) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#888888';
+  } else {
+    ctx.fillStyle = isHead ? skin.head : skin.body;
+  }
   ctx.fillRect(pos.x * GRID_SIZE, pos.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+  ctx.globalAlpha = 1;
 
   // Shield glow
   if (shieldActive && isHead) {
@@ -256,9 +348,23 @@ function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number
   ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
 
   // Border
-  ctx.strokeStyle = config.color;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+  if (isPunishmentFood(food.type)) {
+    const pulseBorder = 0.6 + 0.4 * Math.sin(_pulse * 1.5);
+    ctx.globalAlpha = pulseBorder;
+    ctx.strokeStyle = food.type === 'rottenTomato' ? '#CC3333' : '#663366';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, py, GRID_SIZE, GRID_SIZE);
+    ctx.globalAlpha = 1;
+
+    // Warning indicator
+    ctx.font = '8px sans-serif';
+    ctx.fillStyle = '#FF0000';
+    ctx.fillText('⚠', px + GRID_SIZE - 8, py + 9);
+  } else {
+    ctx.strokeStyle = config.color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+  }
 
   // Emoji icon centered
   const timeLeft = food.expireTime - (now ?? 0);
@@ -272,6 +378,32 @@ function drawFood(ctx: CanvasRenderingContext2D, food: FoodState, _pulse: number
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(config.icon, px + GRID_SIZE / 2, py + GRID_SIZE / 2 + 1);
+  ctx.globalAlpha = 1;
+}
+
+function drawPendingEffectWarning(
+  ctx: CanvasRenderingContext2D,
+  head: Position,
+  pendingEffects: PendingEffect[],
+  pulse: number
+) {
+  const now = Date.now();
+  const warning = pendingEffects.find(
+    (p) => !p.triggered && now >= p.warningAt && now < p.triggerAt
+  );
+
+  if (warning && warning.sourceFood) {
+    const config = getFoodConfig(warning.sourceFood);
+    const px = head.x * GRID_SIZE;
+    const py = head.y * GRID_SIZE;
+
+    const blinkAlpha = Math.sin(pulse * 4) * 0.4 + 0.6;
+    ctx.globalAlpha = blinkAlpha;
+    ctx.font = '12px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(config.icon, px + GRID_SIZE / 2, py - 4);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawOverlay(ctx: CanvasRenderingContext2D, text: string, color: string) {
